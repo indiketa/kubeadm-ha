@@ -122,6 +122,7 @@ Check  (if you opened port 8080) to get HAProxy stats:
 http://10.11.12.9:8080/haproxy?stats
 
 
-## etcd Cluster preparation
+## etcd cluster preparation
+
 
 
