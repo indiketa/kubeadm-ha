@@ -56,6 +56,8 @@ Open kubernetes API port
 ```
 firewall-cmd --permanent --zone=public --add-port=6443/tcp
 firewall-cmd --zone=public --add-port=6443/tcp
+firewall-cmd --permanent --zone=public --add-port=10250/tcp
+firewall-cmd --zone=public --add-port=10250/tcp
 ```
 
 Open HAProxy status port (optional)
