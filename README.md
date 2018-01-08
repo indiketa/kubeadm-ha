@@ -176,5 +176,114 @@ firewall-cmd --zone=trusted --add-interface=tun0 --permanent
 
 ## First kubernetes master installation
 
+Docker install (in production environments configure docker to use lvm volume directly)
+```
+yum install docker
+systemctl enable docker
+systemctl start docker
+```
 
+Kubectl installation
+```
+curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+chmod +x ./kubectl
+mv ./kubectl /usr/local/bin/kubectl
+```
 
+Kubelet installation
+```
+cat <<EOF > /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
+        https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+EOF
+
+yum install -y kubelet
+systemctl enable kubelet
+```
+
+Kubeadm installation
+```
+yum install -y kubeadm
+```
+
+As of kubernetes 1.9 swap space must be deactivated. Turn swap space off and remove from fstab:
+```
+swapoff -a
+vi /etc/fstab
+```
+
+Send bridged packets to iptables:
+```
+echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
+```
+
+Create kube_adm.yaml configuration file for kubeadm
+> Note we are including the load balancer ip and domain name (master.yourdomain.com). The advertiseAddress is set to load balancer.
+
+```
+cat <<EOF > kube_adm.yaml
+apiVersion: kubeadm.k8s.io/v1alpha1
+kind: MasterConfiguration
+etcd:
+  endpoints:
+  - "http://10.11.12.3:2379"
+  - "http://10.11.12.4:2379"
+apiServerCertSANs:
+- "10.11.12.3"
+- "10.11.12.4"
+- "10.11.12.9"
+- "127.0.0.1"
+- "master.yourdomain.com"
+token: "9aeb42.99b7540a5833866a"
+tokenTTL: "0s"
+api:
+  advertiseAddress: "10.11.12.9"
+networking:
+  podSubnet: 10.244.0.0/16
+EOF
+```
+
+Initialize the first cluster master:
+```
+kubeadm init --config kube_adm.yaml
+```
+First node started successfully. Save the join command, it will be used later. In case of loose you can retrieve this tokens directly into etcd cluster.
+
+> Troubleshooting: If could not determine external etcd version error is thrown, ensure that etcd service is started.
+
+Configure kubectl to use credentials to this cluster 
+> **Be careful!** This command will remove access to other clusters
+```
+rm -rf $HOME/.kube
+mkdir -p $HOME/.kube
+cp /etc/kubernetes/admin.conf $HOME/.kube/config
+chown $(id -u):$(id -g) $HOME/.kube/config
+```
+Apply this configuration to all devices (your desktop) that need root-access to cluster. Try with:
+
+```
+kubectl get nodes
+```
+NotReady status will be shown. CNI is missing.
+
+Installation of CNI (we used Canal: a mix of flannel & Calico).
+```
+kubectl apply -f https://raw.githubusercontent.com/projectcalico/canal/master/k8s-install/1.7/rbac.yaml
+kubectl apply -f https://raw.githubusercontent.com/projectcalico/canal/master/k8s-install/1.7/canal.yaml
+```
+
+Retry node status, the node is Ready.
+```
+kubectl get nodes
+```
+First kubernetes master is completed. Prior installing things like dashboard, heapster, etc... I recommend to setup the other master nodes.
+
+## Other master deployment
+
+First install: docker, kubelet, kubeadm as shown on previous chapter.
