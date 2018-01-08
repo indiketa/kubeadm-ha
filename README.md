@@ -124,5 +124,57 @@ http://10.11.12.9:8080/haproxy?stats
 
 ## etcd cluster preparation
 
+On master 1:
+```
+yum -y install etcd
+
+cat <<EOF > /etc/etcd/etcd.conf
+# [member]
+ETCD_NAME=etcd1
+ETCD_DATA_DIR="/var/lib/etcd/default.etcd"
+ETCD_LISTEN_PEER_URLS="http://10.11.12.3:2380"
+ETCD_LISTEN_CLIENT_URLS="http://10.11.12.3:2379,http://127.0.0.1:2379"
+# [cluster]
+ETCD_INITIAL_ADVERTISE_PEER_URLS="http://10.11.12.3:2380"
+ETCD_INITIAL_CLUSTER="etcd1=http://10.11.12.3:2380,etcd2=http://10.11.12.4:2380"
+ETCD_INITIAL_CLUSTER_STATE="new"
+ETCD_INITIAL_CLUSTER_TOKEN="KUBE-ETCD-CLUSTER"
+ETCD_ADVERTISE_CLIENT_URLS="http://10.11.12.3:2379"
+EOF
+
+systemctl enable etcd
+systemctl start etcd
+```
+
+On master 2:
+```
+yum -y install etcd
+cat <<EOF > /etc/etcd/etcd.conf
+# [member]
+ETCD_NAME=etcd1
+ETCD_DATA_DIR="/var/lib/etcd/default.etcd"
+ETCD_LISTEN_PEER_URLS="http://10.11.12.4:2380"
+ETCD_LISTEN_CLIENT_URLS="http://10.11.12.4:2379,http://127.0.0.1:2379"
+# [cluster]
+ETCD_INITIAL_ADVERTISE_PEER_URLS="http://10.11.12.4:2380"
+ETCD_INITIAL_CLUSTER="etcd1=http://10.11.12.3:2380,etcd2=http://10.11.12.4:2380"
+ETCD_INITIAL_CLUSTER_STATE="new"
+ETCD_INITIAL_CLUSTER_TOKEN="KUBE-ETCD-CLUSTER"
+ETCD_ADVERTISE_CLIENT_URLS="http://10.11.12.4:2379"
+EOF
+
+systemctl enable etcd
+systemctl start etcd
+```
+Now the ETCD cluster is ready. My recommendation is to use at least 3 etcd servers (and kuber masters) to ensure real HA.  I've changed master1, master2 network to permit all incoming traffic (kubernetes over vpn: pritunl)
+
+```
+firewall-cmd --permanent --zone=trusted --add-source=10.11.12.0/24
+firewall-cmd --zone=trusted --add-source=10.11.12.0/24
+firewall-cmd --zone=trusted --add-interface=tun0 --permanent
+```
+
+## First kubernetes master installation
+
 
 
