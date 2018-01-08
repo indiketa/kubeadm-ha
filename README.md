@@ -272,7 +272,7 @@ kubectl get nodes
 ```
 NotReady status will be shown. CNI is missing.
 
-Installation of CNI (we used Canal: a mix of flannel & Calico).
+Installation of CNI (we used [Canal](https://github.com/projectcalico/canal): a mix of flannel & calico).
 ```
 kubectl apply -f https://raw.githubusercontent.com/projectcalico/canal/master/k8s-install/1.7/rbac.yaml
 kubectl apply -f https://raw.githubusercontent.com/projectcalico/canal/master/k8s-install/1.7/canal.yaml
