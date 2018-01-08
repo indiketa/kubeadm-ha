@@ -151,7 +151,7 @@ On master 2:
 yum -y install etcd
 cat <<EOF > /etc/etcd/etcd.conf
 # [member]
-ETCD_NAME=etcd1
+ETCD_NAME=etcd2
 ETCD_DATA_DIR="/var/lib/etcd/default.etcd"
 ETCD_LISTEN_PEER_URLS="http://10.11.12.4:2380"
 ETCD_LISTEN_CLIENT_URLS="http://10.11.12.4:2379,http://127.0.0.1:2379"
