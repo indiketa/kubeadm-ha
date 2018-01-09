@@ -288,8 +288,108 @@ kubectl get nodes
 ```
 First kubernetes master is completed. Prior installing things like dashboard, heapster, etc... I recommend to setup the other master nodes.
 
-## Master nodes
-First install docker, kubelet, kubeadm as shown on previous chapter. Create /etc/kubernetes/pki and copy all files from first master to this directory:
+
+## Dashboard UI + Heapster + Grafana
+Dashboard installation. Run on a master node (with kubectl configured)
+```
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/master/src/deploy/recommended/kubernetes-dashboard.yaml
+```
+
+We want to execute Heapster & Grafana in master nodes. We need to modify influxDb definitions adding tolerations to permit this (we need to donwload and modify specs):
+
+```
+yum install -y wget unzip
+wget https://github.com/kubernetes/heapster/archive/master.zip
+unzip master.zip
+cd heapster-master/deploy/kube-config/influxdb
+```
+
+Edit all yaml files (grafana.yaml, heapster.yaml, influxdb.yaml) inserting a toleration to allow execute on master nodes:
+
+<pre>
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: monitoring-grafana
+  namespace: kube-system
+spec:
+  replicas: 1
+  template:  
+    metadata:
+      labels:
+        task: monitoring
+        k8s-app: grafana
+    spec:
+<b>      tolerations:
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"  
+        effect: "NoSchedule" </b>
+      containers:
+      - name: grafana
+        image: k8s.gcr.io/heapster-grafana-amd64:v4.4.3
+        ports:
+        - containerPort: 3000
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /etc/ssl/certs
+          name: ca-certificates
+</pre>
+
+And then create RBAC auth, and heapster, grafana & influxdb services from your edited files:
+```
+kubectl create -f heapster-master/deploy/kube-config/rbac/heapster-rbac.yaml
+kubectl create -f heapster-master/deploy/kube-config/influxdb/
+```
+
+Create a user for accessing dashboard-ui:
+```
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: admin-user
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: admin-user
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: admin-user
+  namespace: kube-system
+```
+
+Get a bearer token to login to dashboard-ui:
+```
+kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep admin-user | awk '{print $1}')
+(copy the token)
+```
+
+Open a proxy from your desktop:
+```
+kubectl proxy
+```
+
+Access [http://localhost:8001/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy](dashboard-ui) and paste the token obtained above.
+
+Now, in order to CANAL (flanneld) to work correctly i had to specify which network interface flanneld should use. This is done through config maps. Select kube-system namespace, then config maps. Open and edit canal-config. Find "canal_iface" key on data field and put your interface name, in my case "tun0".
+
+<pre>
+\\\"Backend\\\": {\\n    \\\"Type\\\": \\\"vxlan\\\"\\n  }\\n}\\n\"},\"kind\":\"ConfigMap\",\"metadata\":{\"annotations\":{},\"name\":\"canal-config\",\"namespace\":\"kube-system\"}}\n"
+    }
+  },
+  "data": {
+    <b>"canal_iface": "tun0",</b>
+    "cni_network_config": "{\n    \"name\": \"k8s-pod-network\",\n    \"cniVersion\": \"0.3.0\",\n    \"plugins\": [\n        {\n            \"type\": \"calico\",\n            \"log_level\": \"info\",\n            \"datastore_type\": \"kubernetes\",\n            \"nodename\": \"__KUBERNETES_NODE_NAME__\",\n            \"ipam\": {\n                \"type\": \"host-local\",\n                \"subnet\": \"usePodC
+</pre>
+
+
+## Set up other master nodes
+First install docker, kubelet, kubeadm as shown on first master node chapter and remember to turn swap off. Create /etc/kubernetes/pki and copy all files from first master to this directory:
 
 ```
 mkdir -p /etc/kubernetes/pki
@@ -323,9 +423,6 @@ Repeat this process for each master node (2 nodes in this example) and check tha
 ```
 kubectl get nodes
 ```
-
-
-## Dashboard UI + Heapster + Grafana
 
 
 
