@@ -374,7 +374,7 @@ Open a proxy from your desktop:
 kubectl proxy
 ```
 
-Access [http://localhost:8001/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy](dashboard-ui) and paste the token obtained above.
+Access [dashboard-ui](http://localhost:8001/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy) and paste the token obtained above.
 
 Now, in order to CANAL (flanneld) to work correctly i had to specify which network interface flanneld should use. This is done through config maps. Select kube-system namespace, then config maps. Open and edit canal-config. Find "canal_iface" key on data field and put your interface name, in my case "tun0".
 
@@ -426,7 +426,7 @@ kubectl get nodes
 
 
 
-## Log rotation on all nodes
+## Enable log rotation on all nodes
 
 Clear container logs
 ```
