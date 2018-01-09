@@ -223,6 +223,8 @@ vi /etc/fstab
 Send bridged packets to iptables:
 ```
 echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
+echo "net.bridge.bridge-nf-call-iptables = 1" >> /etc/sysctl.d/99-sysctl.conf
+sysctl -p /etc/sysctl.conf
 ```
 
 Create kube_adm.yaml configuration file for kubeadm
@@ -286,6 +288,61 @@ kubectl get nodes
 ```
 First kubernetes master is completed. Prior installing things like dashboard, heapster, etc... I recommend to setup the other master nodes.
 
-## Other master deployment
+## Master nodes
+First install docker, kubelet, kubeadm as shown on previous chapter. Create /etc/kubernetes/pki and copy all files from first master to this directory:
 
-First install: docker, kubelet, kubeadm as shown on previous chapter.
+```
+mkdir -p /etc/kubernetes/pki
+scp -r root@10.11.12.3:/etc/kubernetes/pki /etc/kubernetes
+```
+
+Copy kubeadm config file too:
+```
+scp -r root@10.11.12.3:kube_adm.yaml .
+```
+
+Init master node:
+```
+kubeadm init --config kube_adm.yaml
+```
+> Ensure that kubeadm finds the certificates and uses them in this master instance:
+```
+...
+[preflight] Starting the kubelet service
+[certificates] Using the existing ca certificate and key.
+[certificates] Using the existing apiserver certificate and key.
+[certificates] Using the existing apiserver-kubelet-client certificate and key.
+[certificates] Using the existing sa key.
+[certificates] Using the existing front-proxy-ca certificate and key.
+[certificates] Using the existing front-proxy-client certificate and key.
+[certificates] Valid certificates and keys now exist in "/etc/kubernetes/pki"
+...
+```
+
+Repeat this process for each master node (2 nodes in this example) and check that all is running:
+```
+kubectl get nodes
+```
+
+
+## Dashboard UI + Heapster + Grafana
+
+
+
+## Log rotation on all nodes
+
+Clear container logs
+```
+cat << EOF > /etc/logrotate.d/containers
+/var/lib/docker/containers/*/*-json.log {
+    rotate 5
+    copytruncate
+    missingok
+    notifempty
+    compress
+    maxsize 10M
+    daily
+    create 0644 root root
+}
+EOF
+```
