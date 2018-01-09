@@ -178,7 +178,7 @@ firewall-cmd --zone=trusted --add-interface=tun0 --permanent
 
 ## First kubernetes master installation
 
-Docker install (in production environments configure docker to use lvm volume directly)
+Docker install (in production environments configure docker to use lvm volume directly, check [this](https://docs.docker.com/engine/userguide/storagedriver/device-mapper-driver/#prerequisites))
 ```
 yum install docker
 systemctl enable docker
@@ -343,6 +343,7 @@ kubectl create -f heapster-master/deploy/kube-config/influxdb/
 
 Create a user for accessing dashboard-ui:
 ```
+cat <<EOF > master_account.yaml
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -361,6 +362,9 @@ subjects:
 - kind: ServiceAccount
   name: admin-user
   namespace: kube-system
+EOF
+
+kubectl apply -f master_account.yaml
 ```
 
 Get a bearer token to login to dashboard-ui:
@@ -424,7 +428,32 @@ Repeat this process for each master node (2 nodes in this example) and check tha
 kubectl get nodes
 ```
 
+## Setup worker node
+First install docker, kubelet, kubeadm as shown on first master node chapter and remember to turn swap off. Create services for kubelet and docker. And then join to cluster with the command we obtained previously with master nodes (notice we are registering with load balancer ip):
 
+```
+kubeadm join --token 9aeb42.99b7540a5833866a 10.11.12.9:6443 --discovery-token-ca-cert-hash sha256:5ea4d794cbd1285d486a70bb37d2d6250908fa33cbfc4103b2d1f957ca204476
+```
+
+If join command was lost, you can retrieve the token with:
+```
+kubeadm token list
+```
+
+On a master node to obtain token value. You can regenerate CA sha256 digest with:
+```
+openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //'
+```
+
+With this 2 values, you can regenerate the join command:
+```
+kubeadm join --token <token from kubeadm token list> --discovery-token-ca-cert-hash sha256:<value from openssl command> 10.11.12.9:6443 
+```
+
+Label this node (from master):
+```
+kubectl label node node.name.com name=piolin
+```
 
 ## Enable log rotation on all nodes
 
