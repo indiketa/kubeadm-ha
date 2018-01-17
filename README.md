@@ -285,7 +285,7 @@ EDIT: In my case, my network devices are openvpn managed. If VPN network restart
 
 The final CNI I used is this *modified flannel* forked from 0.9.1:
 <pre>
-cat <<EOF > kube_cni.yaml
+cat &lt;&lt;EOF > kube_cni.yaml
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
